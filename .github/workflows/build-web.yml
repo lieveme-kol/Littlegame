@@ -54,26 +54,21 @@ jobs:
           unzip -q littlehistory-changed-scripts.zip -d source/patch
           PROJECT_FILE="$(find source/base -type f -name project.godot -print -quit)"
           test -n "$PROJECT_FILE"
-          FOUND_DIR="$(dirname "$PROJECT_FILE")"
-          PROJECT_DIR="$GITHUB_WORKSPACE/source/base/littlehistory"
-          mkdir -p "$PROJECT_DIR"
-          if [ "$FOUND_DIR" != "$PROJECT_DIR" ]; then
-            cp -a "$FOUND_DIR"/. "$PROJECT_DIR"/
-          fi
+          PROJECT_DIR="$(dirname "$PROJECT_FILE")"
+          PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
           for script in game.gd title_screen.gd lh_hero.gd lh_item.gd lh_gizmo.gd; do
             PATCH_FILE="$(find source/patch -type f -name "$script" -print -quit)"
             test -n "$PATCH_FILE"
             install -D "$PATCH_FILE" "$PROJECT_DIR/scripts/$script"
           done
           mkdir -p "$PROJECT_DIR/dist"
-          test -d "$PROJECT_DIR/dist"
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Godot project: $PROJECT_DIR"
 
       - name: Import project resources
         shell: bash
         run: |
           set -euxo pipefail
-          mkdir -p "$PROJECT_DIR/dist"
           "$GODOT_BIN" --headless --editor --path "$PROJECT_DIR" --quit
 
       - name: Export Web build
@@ -82,15 +77,15 @@ jobs:
           set -euxo pipefail
           OUTPUT_DIR="$PROJECT_DIR/dist"
           mkdir -p "$OUTPUT_DIR"
-          test -d "$OUTPUT_DIR"
           "$GODOT_BIN" --headless --path "$PROJECT_DIR" --export-release "Web" "$OUTPUT_DIR/index.html"
           test -s "$OUTPUT_DIR/index.html"
           find "$OUTPUT_DIR" -maxdepth 1 -type f -printf '%f %s bytes\\n'
+          echo "EXPORT_DIR=$OUTPUT_DIR" >> "$GITHUB_ENV"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: source/base/littlehistory/dist/
+          path: ${{ env.EXPORT_DIR }}
 
   deploy:
     environment:
